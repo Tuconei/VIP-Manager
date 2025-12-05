@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Authors>YourName</Authors>
+		<Company>YourCompany</Company>
+		<Version>1.0.0</Version>
+		<Description>A Dalamud plugin to check VIP names from Google Sheets.</Description>
+		<Copyright></Copyright>
+		<PackageProjectUrl>https://github.com/YourRepo/VipNameChecker</PackageProjectUrl>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<Platforms>x64</Platforms>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+		<NoWarn>CS0618</NoWarn>
+
+		<!-- CRITICAL FIX: This forces the Google DLLs to be copied to your output folder -->
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<DalamudLibPath Condition="Exists('$(appdata)\XIVLauncher\addon\Hooks\dev\Dalamud.dll')">$(appdata)\XIVLauncher\addon\Hooks\dev</DalamudLibPath>
+		<DalamudLibPath Condition="'$(DalamudLibPath)' == ''">$(appdata)\XIVLauncher\addon\Hooks\dev</DalamudLibPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DalamudPackager" Version="11.0.0" />
+		<PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3568" />
+		<PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+		<PackageReference Include="ImGui.NET" Version="1.90.0" PrivateAssets="All" />
+
+		<Reference Include="Dalamud">
+			<HintPath>$(DalamudLibPath)\Dalamud.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Lumina">
+			<HintPath>$(DalamudLibPath)\Lumina.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Lumina.Excel">
+			<HintPath>$(DalamudLibPath)\Lumina.Excel.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="FFXIVClientStructs">
+			<HintPath>$(DalamudLibPath)\FFXIVClientStructs.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- Ensure the Manifest JSON is copied to the build folder -->
+	<ItemGroup>
+		<None Update="VipNameChecker.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+</Project>

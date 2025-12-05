@@ -1,0 +1,25 @@
+--- Build Output (Never upload these) ---
+
+[Bb]in/
+[Oo]bj/
+
+--- Visual Studio Specific ---
+
+.vs/
+*.user
+*.suo
+*.userprefs
+
+--- Sensitive/Local Data ---
+
+These are where Dalamud saves local settings; strictly ignore them
+
+*.json
+!VipNameChecker.json
+
+(VipNameChecker.json is your manifest, we DO want that one)
+
+--- OS Specific ---
+
+.DS_Store
+Thumbs.db
