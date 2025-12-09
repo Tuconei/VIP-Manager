@@ -1,0 +1,14 @@
+{
+  "Author": "Tuconei",
+  "Name": "VIP Name Checker",
+  "InternalName": "VipNameChecker",
+  "AssemblyVersion": "1.0.3.0",
+  "Description": "Draws a VIP indicator next to players listed in a Google Sheet.",
+  "Punchline": "Highlights specific players from a google sheet.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 13,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanLoadAsync": false,
+  "SupportsProfiles": true
+}
