@@ -1,5 +1,5 @@
 ﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui; // Requires successful 'dotnet restore' to resolve
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -24,14 +24,13 @@ namespace VipNameChecker
 
             try
             {
+                // CORRECTED: Use .Length for API 14 compatibility
                 if (Service.ObjectTable.Length == 0) return;
 
-                // Move ImGui calls to separate method to prevent JIT crashes
                 DrawImGuiContent();
             }
             catch (Exception ex)
             {
-                // Log errors silently to the Dalamud console (/xllog) instead of chat
                 Service.PluginLog.Debug($"[VIP Error] Draw loop exception: {ex.Message}");
             }
         }
@@ -59,26 +58,19 @@ namespace VipNameChecker
             if (gameObject == null) return;
 
             float HeightOffset = 2.0f;
-            float ScreenOffsetX = 80.0f;
-            float ScreenOffsetY = -25.0f;
-
             var pos3d = gameObject->Position;
             pos3d.Y += HeightOffset;
 
             if (Service.GameGui.WorldToScreen(pos3d, out var screenPos))
             {
-                screenPos.X += ScreenOffsetX;
-                screenPos.Y += ScreenOffsetY;
+                screenPos.X += 80.0f;
+                screenPos.Y += -25.0f;
                 screenPos.X = MathF.Round(screenPos.X);
                 screenPos.Y = MathF.Round(screenPos.Y);
 
                 string text = "★ VIP";
-                uint color = 0xFF00FF00;
-
-                // Draw Shadow (Black)
                 drawList.AddText(new Vector2(screenPos.X + 1, screenPos.Y + 1), 0xFF000000, text);
-                // Draw Text (Green)
-                drawList.AddText(screenPos, color, text);
+                drawList.AddText(screenPos, 0xFF00FF00, text);
             }
         }
 

@@ -1,62 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Dalamud.NET.Sdk/14.0.0">
 	<PropertyGroup>
-		<Authors>Tuconei</Authors>
-		<Company>Tuconei</Company>
-		<Version>1.0.0</Version>
-		<Description>A Dalamud plugin to check VIP names from Google Sheets.</Description>
-		<PackageProjectUrl>https://github.com/Tuconei/VIP-Manager</PackageProjectUrl>
-		<TargetFramework>net9.0-windows</TargetFramework>
+		<TargetFramework>net10.0-windows</TargetFramework>
 		<Platforms>x64</Platforms>
 		<Nullable>enable</Nullable>
 		<LangVersion>latest</LangVersion>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-		<NoWarn>CS0618</NoWarn>
 
 		<AssemblyName>VipNameChecker</AssemblyName>
 		<RootNamespace>VipNameChecker</RootNamespace>
 
-		<!-- 
-      CHANGED TO FALSE: 
-      We disable automatic copying to stop the "System.*" files from crashing the game.
-    -->
 		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-	</PropertyGroup>
-
-	<PropertyGroup>
-		<DalamudLibPath Condition="Exists('$(AppData)\XIVLauncher\addon\Hooks\dev\Dalamud.dll')">$(AppData)\XIVLauncher\addon\Hooks\dev</DalamudLibPath>
-		<DalamudLibPath Condition="'$(DalamudLibPath)' == '' and Exists('$(AppData)\XIVLauncher\addon\Hooks\dalaupd\Dalamud.dll')">$(AppData)\XIVLauncher\addon\Hooks\dalaupd</DalamudLibPath>
-		<DalamudLibPath Condition="'$(DalamudLibPath)' == ''">C:\Users\mmacc\AppData\Roaming\XIVLauncher\addon\Hooks\dev</DalamudLibPath>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="DalamudPackager" Version="11.0.0" />
-
-		<!-- 
-      SURGICAL METHOD:
-      1. GeneratePathProperty="true": Creates a variable $(PkgImGui_NET) pointing to the download folder.
-      2. PrivateAssets="All": Tells VS "Don't copy this automatically" (We do it manually below).
-    -->
-		<PackageReference Include="ImGui.NET" Version="1.90.0" GeneratePathProperty="true" PrivateAssets="All" />
-
-		<Reference Include="Dalamud">
-			<HintPath>$(DalamudLibPath)\Dalamud.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Lumina">
-			<HintPath>$(DalamudLibPath)\Lumina.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Lumina.Excel">
-			<HintPath>$(DalamudLibPath)\Lumina.Excel.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="FFXIVClientStructs">
-			<HintPath>$(DalamudLibPath)\FFXIVClientStructs.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -64,14 +21,4 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
-
-	<!-- 
-    SURGICAL COPY SCRIPT:
-    This grabs ONLY ImGui.NET.dll from the NuGet cache and drops it in your bin folder.
-    This ensures NO other files (System.Buffers, etc.) are copied, preventing the crash.
-  -->
-	<Target Name="SurgicalCopyImGui" AfterTargets="Build">
-		<Message Text="Surgically copying ImGui.NET.dll from NuGet cache..." Importance="high" />
-		<Copy SourceFiles="$(PkgImGui_NET)\lib\net6.0\ImGui.NET.dll" DestinationFolder="$(OutputPath)" />
-	</Target>
 </Project>
