@@ -9,9 +9,12 @@ namespace VipNameChecker
     {
         public int Version { get; set; } = 0;
         public string SpreadsheetId { get; set; } = "";
-
-        // NEW: Remember if the overlay is ON or OFF. Default is ON.
         public bool IsOverlayEnabled { get; set; } = true;
+
+        public bool ShowHighlightRing { get; set; } = true;
+
+        // NEW: Setting for the overhead VIP text tag
+        public bool ShowVipTag { get; set; } = true;
 
         [NonSerialized]
         private IDalamudPluginInterface? PluginInterface;
