@@ -9,6 +9,10 @@ namespace VipNameChecker
     public class VipManager
     {
         private readonly HashSet<string> _vipNames = new();
+        private readonly Dictionary<string, string> _vipTypes = new();
+        private readonly Dictionary<string, string> _vipDancers = new();
+        private readonly Dictionary<string, string> _vipGambaTokens = new();
+        private readonly Dictionary<string, string> _vipPhotos = new();
         private readonly object _lock = new();
         private readonly Configuration _config;
         private readonly HttpClient _http;
@@ -43,6 +47,11 @@ namespace VipNameChecker
                     lock (_lock)
                     {
                         _vipNames.Clear();
+                        _vipTypes.Clear();
+                        _vipDancers.Clear();
+                        _vipGambaTokens.Clear();
+                        _vipPhotos.Clear();
+
 
                         for (int i = 0; i < lines.Length; i++)
                         {
@@ -57,7 +66,47 @@ namespace VipNameChecker
 
                                 if (!string.IsNullOrWhiteSpace(cleanName))
                                 {
-                                    _vipNames.Add(cleanName.ToLower());
+                                    string key = cleanName.ToLower();
+                                    _vipNames.Add(key);
+
+                                    string vipType = "";
+                                    if (columns.Length > 2)
+                                    {
+                                        vipType = columns[2].Trim('"').Trim();
+                                    }
+
+                                    if (!string.IsNullOrWhiteSpace(vipType))
+                                    {
+                                        _vipTypes[key] = vipType;
+                                    }
+
+                                    if (columns.Length > 3)
+                                    {
+                                        string dancer = columns[3].Trim('"').Trim();
+                                        if (!string.IsNullOrWhiteSpace(dancer))
+                                        {
+                                            _vipDancers[key] = dancer;
+                                        }
+                                    }
+
+                                    if (columns.Length > 4)
+                                    {
+                                        string gambaToken = columns[4].Trim('"').Trim();
+                                        if (!string.IsNullOrWhiteSpace(gambaToken))
+                                        {
+                                            _vipGambaTokens[key] = gambaToken;
+                                        }
+                                    }
+
+                                    if (columns.Length > 5)
+                                    {
+                                        string photo = columns[5].Trim('"').Trim();
+                                        if (!string.IsNullOrWhiteSpace(photo))
+                                        {
+                                            _vipPhotos[key] = photo;
+                                        }
+                                    }
+
                                 }
                             }
                         }
@@ -77,6 +126,45 @@ namespace VipNameChecker
         {
             if (string.IsNullOrEmpty(name)) return false;
             lock (_lock) return _vipNames.Contains(name.ToLower());
+        }
+
+        public string? GetVipType(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            lock (_lock)
+            {
+                _vipTypes.TryGetValue(name.ToLower(), out var vipType);
+                return vipType;
+            }
+        }
+        public string? GetVipDancer(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            lock (_lock)
+            {
+                _vipDancers.TryGetValue(name.ToLower(), out var dancer);
+                return dancer;
+            }
+        }
+
+        public string? GetVipGambaToken(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            lock (_lock)
+            {
+                _vipGambaTokens.TryGetValue(name.ToLower(), out var token);
+                return token;
+            }
+        }
+
+        public string? GetVipPhoto(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            lock (_lock)
+            {
+                _vipPhotos.TryGetValue(name.ToLower(), out var photo);
+                return photo;
+            }
         }
 
         public List<string> GetDebugList()

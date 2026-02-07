@@ -16,6 +16,10 @@ namespace VipNameChecker
         // NEW: Setting for the overhead VIP text tag
         public bool ShowVipTag { get; set; } = true;
 
+        public bool ShowVipList { get; set; } = true;
+
+        public float VipListRange { get; set; } = 30.0f;
+
         [NonSerialized]
         private IDalamudPluginInterface? PluginInterface;
 

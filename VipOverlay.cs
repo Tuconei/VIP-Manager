@@ -1,9 +1,10 @@
-﻿using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Objects.SubKinds;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
 namespace VipNameChecker
 {
@@ -37,6 +38,7 @@ namespace VipNameChecker
         private void DrawImGuiContent()
         {
             var drawList = ImGui.GetForegroundDrawList();
+            var vipsInRange = GetVipsInRange();
 
             foreach (var actor in Service.ObjectTable)
             {
@@ -56,6 +58,100 @@ namespace VipNameChecker
                         }
                     }
                 }
+            }
+
+            if (_config.ShowVipList)
+            {
+                DrawVipListWindow(vipsInRange);
+            }
+        }
+
+        private List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)> GetVipsInRange()
+        {
+            var results = new List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)>(); var localPlayer = Service.ClientState.LocalPlayer;
+            if (localPlayer == null)
+            {
+                return results;
+            }
+
+            float maxDistance = MathF.Max(0.0f, _config.VipListRange);
+
+            foreach (var actor in Service.ObjectTable)
+            {
+                if (actor is IPlayerCharacter player)
+                {
+                    if (!_vipManager.IsVip(player.Name.TextValue))
+                    {
+                        continue;
+                    }
+
+                    float distance = Vector3.Distance(localPlayer.Position, player.Position);
+                    if (distance <= maxDistance && player != localPlayer)
+                    {
+                        string vipType = _vipManager.GetVipType(player.Name.TextValue) ?? "Unknown";
+                        string dancer = _vipManager.GetVipDancer(player.Name.TextValue) ?? "-";
+                        string gambaToken = _vipManager.GetVipGambaToken(player.Name.TextValue) ?? "-";
+                        string photo = _vipManager.GetVipPhoto(player.Name.TextValue) ?? "-";
+                        results.Add((player, distance, vipType, dancer, gambaToken, photo));
+                    }
+                }
+            }
+
+            results.Sort((left, right) => left.distance.CompareTo(right.distance));
+            return results;
+        }
+
+        private void DrawVipListWindow(List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)> vipsInRange)
+        {
+            ImGui.SetNextWindowSize(new Vector2(520, 300), ImGuiCond.FirstUseEver);
+            if (ImGui.Begin("VIPs In Range"))
+            {
+                if (vipsInRange.Count == 0)
+                {
+                    ImGui.Text("No VIPs within range.");
+                }
+                else
+                {
+                    if (ImGui.BeginTable("VipListTable", 5, ImGuiTableFlags.BordersInnerV))
+                    {
+                        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 90.0f);
+                        ImGui.TableSetupColumn("Dancer", ImGuiTableColumnFlags.WidthFixed, 90.0f);
+                        ImGui.TableSetupColumn("Gamba Token", ImGuiTableColumnFlags.WidthFixed, 110.0f);
+                        ImGui.TableSetupColumn("Photo", ImGuiTableColumnFlags.WidthFixed, 80.0f);
+                        ImGui.TableHeadersRow();
+
+                        foreach (var (player, distance, vipType, dancer, gambaToken, photo) in vipsInRange)
+                        {
+                            ImGui.TableNextRow();
+                            ImGui.TableSetColumnIndex(0);
+
+                            string label = $"{player.Name.TextValue} ({distance:F1}y)";
+                            if (ImGui.Selectable(label, false, ImGuiSelectableFlags.SpanAllColumns))
+                            {
+                                Service.TargetManager.Target = player;
+                            }
+
+                            ImGui.TableSetColumnIndex(1);
+                            ImGui.TextUnformatted(vipType);
+
+                            ImGui.TableSetColumnIndex(2);
+                            ImGui.TextUnformatted(dancer);
+
+                            ImGui.TableSetColumnIndex(3);
+                            ImGui.TextUnformatted(gambaToken);
+
+                            ImGui.TableSetColumnIndex(4);
+                            ImGui.TextUnformatted(photo);
+
+                        }
+
+                        ImGui.EndTable();
+
+                    }
+                }
+
+                ImGui.End();
             }
         }
 

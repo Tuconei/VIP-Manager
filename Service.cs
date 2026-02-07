@@ -12,6 +12,7 @@ namespace VipNameChecker
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] public static IObjectTable ObjectTable { get; private set; } = null!;
         [PluginService] public static IGameGui GameGui { get; private set; } = null!;
+        [PluginService] public static ITargetManager TargetManager { get; private set; } = null!;
         [PluginService] public static IPluginLog PluginLog { get; private set; } = null!;
     }
 }

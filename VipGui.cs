@@ -55,6 +55,20 @@ namespace VipNameChecker
                     _config.Save();
                 }
 
+                bool showVipList = _config.ShowVipList;
+                if (ImGui.Checkbox("Show VIPs In Range List", ref showVipList))
+                {
+                    _config.ShowVipList = showVipList;
+                    _config.Save();
+                }
+
+                float vipListRange = _config.VipListRange;
+                if (ImGui.SliderFloat("VIP List Range", ref vipListRange, 5.0f, 100.0f, "%.1f yalms"))
+                {
+                    _config.VipListRange = vipListRange;
+                    _config.Save();
+                }
+
                 ImGui.Separator();
 
                 ImGui.Text("Google Spreadsheet ID:");
