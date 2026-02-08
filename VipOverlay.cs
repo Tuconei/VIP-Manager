@@ -22,11 +22,12 @@ namespace VipNameChecker
 
         private void Draw()
         {
-            if (!_config.IsOverlayEnabled || Service.ObjectTable.Length == 0) return;
+            var profile = _config.GetActiveProfile();
+            if (!profile.IsOverlayEnabled || Service.ObjectTable.Length == 0) return;
 
             try
             {
-                DrawImGuiContent();
+                DrawImGuiContent(profile);
             }
             catch (Exception ex)
             {
@@ -35,10 +36,17 @@ namespace VipNameChecker
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void DrawImGuiContent()
+        private void DrawImGuiContent(VipProfile profile)
         {
             var drawList = ImGui.GetForegroundDrawList();
-            var vipsInRange = GetVipsInRange();
+
+            // Optimization: Only calculate list if window is actually needed? 
+            // For now, we calculate anyway to keep logic simple, or we can check if we are drawing the list.
+            List<(IPlayerCharacter player, float distance, List<string> data)>? vipsInRange = null;
+            if (profile.ShowVipList)
+            {
+                vipsInRange = GetVipsInRange(profile);
+            }
 
             foreach (var actor in Service.ObjectTable)
             {
@@ -46,13 +54,12 @@ namespace VipNameChecker
                 {
                     if (_vipManager.IsVip(player.Name.TextValue))
                     {
-                        if (_config.ShowHighlightRing)
+                        if (profile.ShowHighlightRing)
                         {
                             DrawHighlightRing(player, drawList);
                         }
 
-                        // NEW: Check setting before drawing overhead text
-                        if (_config.ShowVipTag)
+                        if (profile.ShowVipTag)
                         {
                             DrawCenteredVipText(player, drawList);
                         }
@@ -60,21 +67,22 @@ namespace VipNameChecker
                 }
             }
 
-            if (_config.ShowVipList)
+            if (profile.ShowVipList && vipsInRange != null)
             {
-                DrawVipListWindow(vipsInRange);
+                DrawVipListWindow(vipsInRange, profile);
             }
         }
 
-        private List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)> GetVipsInRange()
+        private List<(IPlayerCharacter player, float distance, List<string> data)> GetVipsInRange(VipProfile profile)
         {
-            var results = new List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)>(); var localPlayer = Service.ClientState.LocalPlayer;
+            var results = new List<(IPlayerCharacter player, float distance, List<string> data)>();
+            var localPlayer = Service.ClientState.LocalPlayer;
             if (localPlayer == null)
             {
                 return results;
             }
 
-            float maxDistance = MathF.Max(0.0f, _config.VipListRange);
+            float maxDistance = MathF.Max(0.0f, profile.VipListRange);
 
             foreach (var actor in Service.ObjectTable)
             {
@@ -88,11 +96,9 @@ namespace VipNameChecker
                     float distance = Vector3.Distance(localPlayer.Position, player.Position);
                     if (distance <= maxDistance && player != localPlayer)
                     {
-                        string vipType = _vipManager.GetVipType(player.Name.TextValue) ?? "Unknown";
-                        string dancer = _vipManager.GetVipDancer(player.Name.TextValue) ?? "-";
-                        string gambaToken = _vipManager.GetVipGambaToken(player.Name.TextValue) ?? "-";
-                        string photo = _vipManager.GetVipPhoto(player.Name.TextValue) ?? "-";
-                        results.Add((player, distance, vipType, dancer, gambaToken, photo));
+                        var vipData = _vipManager.GetVipData(player.Name.TextValue);
+                        // If data is null (shouldn't be if IsVip is true), use empty list
+                        results.Add((player, distance, vipData ?? new List<string>()));
                     }
                 }
             }
@@ -101,10 +107,15 @@ namespace VipNameChecker
             return results;
         }
 
-        private void DrawVipListWindow(List<(IPlayerCharacter player, float distance, string vipType, string dancer, string gambaToken, string photo)> vipsInRange)
+        private void DrawVipListWindow(List<(IPlayerCharacter player, float distance, List<string> data)> vipsInRange, VipProfile profile)
         {
             ImGui.SetNextWindowSize(new Vector2(520, 300), ImGuiCond.FirstUseEver);
-            if (ImGui.Begin("VIPs In Range"))
+
+            // Create a local bool initialized to the profile setting to track state
+            bool isOpen = profile.ShowVipList;
+
+            // Pass ref isOpen to enable the close button (X) in the window header
+            if (ImGui.Begin("VIPs In Range", ref isOpen))
             {
                 if (vipsInRange.Count == 0)
                 {
@@ -112,16 +123,21 @@ namespace VipNameChecker
                 }
                 else
                 {
-                    if (ImGui.BeginTable("VipListTable", 5, ImGuiTableFlags.BordersInnerV))
+                    // 1 column for Name + N columns from profile
+                    int colCount = 1 + profile.Columns.Count;
+
+                    if (ImGui.BeginTable("VipListTable", colCount, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.Resizable))
                     {
                         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 90.0f);
-                        ImGui.TableSetupColumn("Dancer", ImGuiTableColumnFlags.WidthFixed, 90.0f);
-                        ImGui.TableSetupColumn("Gamba Token", ImGuiTableColumnFlags.WidthFixed, 110.0f);
-                        ImGui.TableSetupColumn("Photo", ImGuiTableColumnFlags.WidthFixed, 80.0f);
+
+                        foreach (var colDef in profile.Columns)
+                        {
+                            ImGui.TableSetupColumn(colDef.Header, ImGuiTableColumnFlags.WidthFixed, colDef.Width);
+                        }
+
                         ImGui.TableHeadersRow();
 
-                        foreach (var (player, distance, vipType, dancer, gambaToken, photo) in vipsInRange)
+                        foreach (var (player, distance, data) in vipsInRange)
                         {
                             ImGui.TableNextRow();
                             ImGui.TableSetColumnIndex(0);
@@ -132,18 +148,18 @@ namespace VipNameChecker
                                 Service.TargetManager.Target = player;
                             }
 
-                            ImGui.TableSetColumnIndex(1);
-                            ImGui.TextUnformatted(vipType);
-
-                            ImGui.TableSetColumnIndex(2);
-                            ImGui.TextUnformatted(dancer);
-
-                            ImGui.TableSetColumnIndex(3);
-                            ImGui.TextUnformatted(gambaToken);
-
-                            ImGui.TableSetColumnIndex(4);
-                            ImGui.TextUnformatted(photo);
-
+                            for (int i = 0; i < profile.Columns.Count; i++)
+                            {
+                                ImGui.TableSetColumnIndex(i + 1);
+                                if (i < data.Count)
+                                {
+                                    ImGui.TextUnformatted(data[i]);
+                                }
+                                else
+                                {
+                                    ImGui.TextUnformatted("-");
+                                }
+                            }
                         }
 
                         ImGui.EndTable();
@@ -152,6 +168,13 @@ namespace VipNameChecker
                 }
 
                 ImGui.End();
+            }
+
+            // Check if the user closed the window using the X button
+            if (isOpen != profile.ShowVipList)
+            {
+                profile.ShowVipList = isOpen;
+                _config.Save();
             }
         }
 

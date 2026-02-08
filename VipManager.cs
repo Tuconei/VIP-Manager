@@ -8,11 +8,12 @@ namespace VipNameChecker
 {
     public class VipManager
     {
+        // Stores VIP names
         private readonly HashSet<string> _vipNames = new();
-        private readonly Dictionary<string, string> _vipTypes = new();
-        private readonly Dictionary<string, string> _vipDancers = new();
-        private readonly Dictionary<string, string> _vipGambaTokens = new();
-        private readonly Dictionary<string, string> _vipPhotos = new();
+
+        // Stores data for each VIP. Key: Name (lowercase). Value: List of strings corresponding to the Active Profile's Columns.
+        private readonly Dictionary<string, List<string>> _vipData = new();
+
         private readonly object _lock = new();
         private readonly Configuration _config;
         private readonly HttpClient _http;
@@ -25,9 +26,11 @@ namespace VipNameChecker
 
         public void LoadVipNames()
         {
-            if (string.IsNullOrEmpty(_config.SpreadsheetId))
+            var profile = _config.GetActiveProfile();
+
+            if (string.IsNullOrEmpty(profile.SpreadsheetId))
             {
-                Service.Chat.Print("[VIP] Error: Sheet ID not set! Use '/vip setid <ID>'");
+                Service.Chat.Print("[VIP] Error: Sheet ID not set for current profile.");
                 return;
             }
 
@@ -35,32 +38,33 @@ namespace VipNameChecker
             {
                 try
                 {
-                    Service.PluginLog.Information("Fetching VIP list via CSV...");
+                    Service.PluginLog.Information($"Fetching VIP list for profile '{profile.Name}'...");
 
-                    string url = $"https://docs.google.com/spreadsheets/d/{_config.SpreadsheetId}/export?format=csv";
+                    string url = $"https://docs.google.com/spreadsheets/d/{profile.SpreadsheetId}/export?format=csv";
 
                     _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
                     var csvData = await _http.GetStringAsync(url);
                     var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
+                    // Pre-calculate column indices to avoid parsing on every row
+                    var columnIndices = profile.Columns.Select(c => ParseColumnToIndex(c.CsvColumn)).ToList();
+
                     lock (_lock)
                     {
                         _vipNames.Clear();
-                        _vipTypes.Clear();
-                        _vipDancers.Clear();
-                        _vipGambaTokens.Clear();
-                        _vipPhotos.Clear();
-
+                        _vipData.Clear();
 
                         for (int i = 0; i < lines.Length; i++)
                         {
                             var line = lines[i];
+                            // Simple CSV split - standard CSV handling handles commas inside quotes, but simple split matches original implementation
+                            // If your sheets have commas in cells, a more robust CSV parser is needed.
                             var columns = line.Split(',');
 
                             if (columns.Length > 0)
                             {
-                                string rawName = columns[0]; // Column A
+                                string rawName = columns[0]; // Column A is always assumed to be Name
                                 rawName = rawName.Trim('"');
                                 string cleanName = rawName.Split('(')[0].Trim();
 
@@ -69,50 +73,24 @@ namespace VipNameChecker
                                     string key = cleanName.ToLower();
                                     _vipNames.Add(key);
 
-                                    string vipType = "";
-                                    if (columns.Length > 2)
-                                    {
-                                        vipType = columns[2].Trim('"').Trim();
-                                    }
+                                    var rowData = new List<string>();
 
-                                    if (!string.IsNullOrWhiteSpace(vipType))
+                                    foreach (var index in columnIndices)
                                     {
-                                        _vipTypes[key] = vipType;
-                                    }
-
-                                    if (columns.Length > 3)
-                                    {
-                                        string dancer = columns[3].Trim('"').Trim();
-                                        if (!string.IsNullOrWhiteSpace(dancer))
+                                        string cellValue = "-";
+                                        if (index >= 0 && index < columns.Length)
                                         {
-                                            _vipDancers[key] = dancer;
+                                            cellValue = columns[index].Trim('"').Trim();
                                         }
+                                        rowData.Add(cellValue);
                                     }
 
-                                    if (columns.Length > 4)
-                                    {
-                                        string gambaToken = columns[4].Trim('"').Trim();
-                                        if (!string.IsNullOrWhiteSpace(gambaToken))
-                                        {
-                                            _vipGambaTokens[key] = gambaToken;
-                                        }
-                                    }
-
-                                    if (columns.Length > 5)
-                                    {
-                                        string photo = columns[5].Trim('"').Trim();
-                                        if (!string.IsNullOrWhiteSpace(photo))
-                                        {
-                                            _vipPhotos[key] = photo;
-                                        }
-                                    }
-
+                                    _vipData[key] = rowData;
                                 }
                             }
                         }
                     }
-                    // CHANGED: Generic success message to avoid confusion over row counts
-                    Service.Chat.Print("[VIP Checker] VIP List loaded successfully.");
+                    Service.Chat.Print($"[VIP Checker] VIP List loaded ({_vipNames.Count} entries).");
                 }
                 catch (Exception ex)
                 {
@@ -128,48 +106,41 @@ namespace VipNameChecker
             lock (_lock) return _vipNames.Contains(name.ToLower());
         }
 
-        public string? GetVipType(string name)
+        // Returns the list of column values for a specific player
+        public List<string>? GetVipData(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
             lock (_lock)
             {
-                _vipTypes.TryGetValue(name.ToLower(), out var vipType);
-                return vipType;
-            }
-        }
-        public string? GetVipDancer(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            lock (_lock)
-            {
-                _vipDancers.TryGetValue(name.ToLower(), out var dancer);
-                return dancer;
+                if (_vipData.TryGetValue(name.ToLower(), out var data))
+                {
+                    return data;
+                }
+                return null;
             }
         }
 
-        public string? GetVipGambaToken(string name)
+        // Helper to convert "A", "B", "C" or "1", "2", "3" to 0-based index
+        private int ParseColumnToIndex(string input)
         {
-            if (string.IsNullOrEmpty(name)) return null;
-            lock (_lock)
-            {
-                _vipGambaTokens.TryGetValue(name.ToLower(), out var token);
-                return token;
-            }
-        }
+            if (string.IsNullOrWhiteSpace(input)) return -1;
+            input = input.ToUpper().Trim();
 
-        public string? GetVipPhoto(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            lock (_lock)
+            // Check if it's a number
+            if (int.TryParse(input, out int result))
             {
-                _vipPhotos.TryGetValue(name.ToLower(), out var photo);
-                return photo;
+                return result - 1; // User types 1 for Column A, convert to 0
             }
-        }
 
-        public List<string> GetDebugList()
-        {
-            lock (_lock) return _vipNames.Take(10).ToList();
+            // Convert letters to index (A=0, B=1, AA=26)
+            int index = 0;
+            foreach (char c in input)
+            {
+                if (c < 'A' || c > 'Z') return -1; // Invalid character
+                index *= 26;
+                index += (c - 'A' + 1);
+            }
+            return index - 1;
         }
     }
 }
