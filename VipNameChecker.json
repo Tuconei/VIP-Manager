@@ -6,7 +6,7 @@
   "Description": "Draws a VIP indicator next to players listed in a Google Sheet.",
   "Punchline": "Highlights specific players from a google sheet.",
   "ApplicableVersion": "any",
-  "DalamudApiLevel": 14,
+  "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanLoadAsync": false,

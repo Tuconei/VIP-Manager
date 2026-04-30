@@ -76,7 +76,7 @@ namespace VipNameChecker
         private List<(IPlayerCharacter player, float distance, List<string> data)> GetVipsInRange(VipProfile profile)
         {
             var results = new List<(IPlayerCharacter player, float distance, List<string> data)>();
-            var localPlayer = Service.ClientState.LocalPlayer;
+            var localPlayer = Service.ObjectTable.LocalPlayer;
             if (localPlayer == null)
             {
                 return results;
