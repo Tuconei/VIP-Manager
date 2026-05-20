@@ -69,6 +69,30 @@ namespace VipNameChecker
                     _config.Save();
                 }
 
+                if (profile.ShowHighlightRing)
+                {
+                    float ringRadius = profile.RingRadius;
+                    if (ImGui.SliderFloat("Ring Radius", ref ringRadius, 0.3f, 5.0f, "%.1f"))
+                    {
+                        profile.RingRadius = ringRadius;
+                        _config.Save();
+                    }
+
+                    bool ringSolid = profile.RingSolid;
+                    if (ImGui.Checkbox("Solid Ring", ref ringSolid))
+                    {
+                        profile.RingSolid = ringSolid;
+                        _config.Save();
+                    }
+
+                    var ringColor = profile.RingColor;
+                    if (ImGui.ColorEdit4("Ring Color", ref ringColor, ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
+                    {
+                        profile.RingColor = ringColor;
+                        _config.Save();
+                    }
+                }
+
                 bool showTag = profile.ShowVipTag;
                 if (ImGui.Checkbox("Show VIP Tag", ref showTag))
                 {
@@ -103,6 +127,29 @@ namespace VipNameChecker
                 if (ImGui.Button("Reload VIP List"))
                 {
                     _vipManager.LoadVipNames();
+                }
+
+                ImGui.SameLine();
+
+                bool autoRefresh = profile.AutoRefreshEnabled;
+                if (ImGui.Checkbox("Auto Refresh", ref autoRefresh))
+                {
+                    profile.AutoRefreshEnabled = autoRefresh;
+                    _config.Save();
+                    _vipManager.UpdateAutoRefresh();
+                }
+
+                if (profile.AutoRefreshEnabled)
+                {
+                    ImGui.SameLine();
+                    ImGui.SetNextItemWidth(60);
+                    int interval = profile.AutoRefreshIntervalMinutes;
+                    if (ImGui.InputInt("min", ref interval, 0))
+                    {
+                        profile.AutoRefreshIntervalMinutes = Math.Max(1, interval);
+                        _config.Save();
+                        _vipManager.UpdateAutoRefresh();
+                    }
                 }
 
                 ImGui.Separator();

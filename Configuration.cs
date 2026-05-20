@@ -2,6 +2,7 @@ using Dalamud.Configuration;
 using Dalamud.Plugin;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace VipNameChecker
 {
@@ -22,9 +23,15 @@ namespace VipNameChecker
 
         public bool IsOverlayEnabled { get; set; } = true;
         public bool ShowHighlightRing { get; set; } = true;
+        public float RingRadius { get; set; } = 0.8f;
+        public bool RingSolid { get; set; } = false;
+        public Vector4 RingColor { get; set; } = new Vector4(0f, 1f, 0f, 1f);
         public bool ShowVipTag { get; set; } = true;
         public bool ShowVipList { get; set; } = true;
         public float VipListRange { get; set; } = 30.0f;
+
+        public bool AutoRefreshEnabled { get; set; } = false;
+        public int AutoRefreshIntervalMinutes { get; set; } = 5;
 
         public List<ColumnDefinition> Columns { get; set; } = new();
     }

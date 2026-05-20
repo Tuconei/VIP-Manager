@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace VipNameChecker
 {
-    public class VipManager
+    public class VipManager : IDisposable
     {
         // Stores VIP names
         private readonly HashSet<string> _vipNames = new();
@@ -17,11 +18,32 @@ namespace VipNameChecker
         private readonly object _lock = new();
         private readonly Configuration _config;
         private readonly HttpClient _http;
+        private Timer? _refreshTimer;
 
         public VipManager(Configuration config)
         {
             _config = config;
             _http = new HttpClient();
+        }
+
+        public void UpdateAutoRefresh()
+        {
+            var profile = _config.GetActiveProfile();
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+
+            if (profile.AutoRefreshEnabled && profile.AutoRefreshIntervalMinutes > 0)
+            {
+                var interval = TimeSpan.FromMinutes(profile.AutoRefreshIntervalMinutes);
+                _refreshTimer = new Timer(_ => LoadVipNames(), null, interval, interval);
+            }
+        }
+
+        public void Dispose()
+        {
+            _refreshTimer?.Dispose();
+            _refreshTimer = null;
+            _http.Dispose();
         }
 
         public void LoadVipNames()

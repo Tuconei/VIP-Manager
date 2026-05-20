@@ -10,6 +10,8 @@
 		<RootNamespace>VipNameChecker</RootNamespace>
 
 		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+
+		<DevPluginOutputPath Condition="'$(DevPluginOutputPath)' == ''">$(AppData)\XIVLauncher\devPluginOutputs\VipNameChecker\</DevPluginOutputPath>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -17,4 +19,10 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
+
+	<Target Name="CopyToDevPluginOutput" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' AND '$(DevPluginOutputPath)' != ''">
+		<MakeDir Directories="$(DevPluginOutputPath)" />
+		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DevPluginOutputPath)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(TargetDir)$(AssemblyName).json" DestinationFolder="$(DevPluginOutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(AssemblyName).json')" />
+	</Target>
 </Project>

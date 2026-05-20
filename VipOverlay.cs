@@ -56,7 +56,7 @@ namespace VipNameChecker
                     {
                         if (profile.ShowHighlightRing)
                         {
-                            DrawHighlightRing(player, drawList);
+                            DrawHighlightRing(player, drawList, profile);
                         }
 
                         if (profile.ShowVipTag)
@@ -178,15 +178,15 @@ namespace VipNameChecker
             }
         }
 
-        private void DrawHighlightRing(IPlayerCharacter player, ImDrawListPtr drawList)
+        private void DrawHighlightRing(IPlayerCharacter player, ImDrawListPtr drawList, VipProfile profile)
         {
             var gameObject = (GameObject*)player.Address;
             if (gameObject == null) return;
 
             Vector3 pos = gameObject->Position;
-            float radius = 0.8f;
+            float radius = profile.RingRadius;
             int segments = 32;
-            uint color = 0xFF00FF00;
+            uint color = ColorToUint(profile.RingColor);
 
             var points = new Vector2[segments];
             int visiblePoints = 0;
@@ -208,9 +208,16 @@ namespace VipNameChecker
 
             if (visiblePoints >= 3)
             {
-                for (int i = 0; i < visiblePoints; i++)
+                if (profile.RingSolid)
                 {
-                    drawList.AddLine(points[i], points[(i + 1) % visiblePoints], color, 3.0f);
+                    drawList.AddConvexPolyFilled(ref points[0], visiblePoints, color);
+                }
+                else
+                {
+                    for (int i = 0; i < visiblePoints; i++)
+                    {
+                        drawList.AddLine(points[i], points[(i + 1) % visiblePoints], color, 3.0f);
+                    }
                 }
             }
         }
@@ -237,6 +244,15 @@ namespace VipNameChecker
                 drawList.AddText(new Vector2(textPos.X + 1, textPos.Y + 1), 0xFF000000, text);
                 drawList.AddText(textPos, 0xFF00FF00, text);
             }
+        }
+
+        private static uint ColorToUint(System.Numerics.Vector4 c)
+        {
+            byte r = (byte)(Math.Clamp(c.X, 0f, 1f) * 255);
+            byte g = (byte)(Math.Clamp(c.Y, 0f, 1f) * 255);
+            byte b = (byte)(Math.Clamp(c.Z, 0f, 1f) * 255);
+            byte a = (byte)(Math.Clamp(c.W, 0f, 1f) * 255);
+            return (uint)((a << 24) | (b << 16) | (g << 8) | r);
         }
 
         public void Dispose()

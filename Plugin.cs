@@ -99,6 +99,7 @@ namespace VipNameChecker
             Service.CommandManager.RemoveHandler("/vip");
             _gui?.Dispose();
             _overlay?.Dispose();
+            _vipManager?.Dispose();
         }
     }
 }
