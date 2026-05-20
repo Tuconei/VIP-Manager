@@ -8,6 +8,7 @@
 
 		<AssemblyName>VipNameChecker</AssemblyName>
 		<RootNamespace>VipNameChecker</RootNamespace>
+		<Version>1.2.0.0</Version>
 
 		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 
