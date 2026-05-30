@@ -1,5 +1,7 @@
 ﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.Gui.NamePlate;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using System;
 using System.Collections.Generic;
@@ -12,12 +14,14 @@ namespace VipNameChecker
     {
         private readonly VipManager _vipManager;
         private readonly Configuration _config;
+        private readonly Dictionary<ulong, IntPtr> _vipNamePlateObjects = new();
 
         public VipOverlay(VipManager manager, Configuration config)
         {
             _vipManager = manager;
             _config = config;
             Service.PluginInterface.UiBuilder.Draw += Draw;
+            Service.NamePlateGui.OnPostNamePlateUpdate += OnNamePlateUpdate;
         }
 
         private void Draw()
@@ -59,12 +63,13 @@ namespace VipNameChecker
                             DrawHighlightRing(player, drawList, profile);
                         }
 
-                        if (profile.ShowVipTag)
-                        {
-                            DrawCenteredVipText(player, drawList);
-                        }
                     }
                 }
+            }
+
+            if (profile.ShowVipTag)
+            {
+                DrawVipNamePlateTags(drawList, profile);
             }
 
             if (profile.ShowVipList && vipsInRange != null)
@@ -222,28 +227,119 @@ namespace VipNameChecker
             }
         }
 
-        private void DrawCenteredVipText(IPlayerCharacter player, ImDrawListPtr drawList)
+        private void OnNamePlateUpdate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
-            var gameObject = (GameObject*)player.Address;
-            if (gameObject == null) return;
-
-            float characterHeight = 1.9f;
-            var pos3d = gameObject->Position;
-            pos3d.Y += characterHeight + 0.5f;
-
-            if (Service.GameGui.WorldToScreen(pos3d, out var screenPos))
+            var profile = _config.GetActiveProfile();
+            if (!profile.IsOverlayEnabled || !profile.ShowVipTag)
             {
-                string text = "★ VIP ★";
-                var textSize = ImGui.CalcTextSize(text);
-
-                Vector2 textPos = new Vector2(
-                    screenPos.X - (textSize.X / 2.0f),
-                    screenPos.Y - textSize.Y
-                );
-
-                drawList.AddText(new Vector2(textPos.X + 1, textPos.Y + 1), 0xFF000000, text);
-                drawList.AddText(textPos, 0xFF00FF00, text);
+                _vipNamePlateObjects.Clear();
+                return;
             }
+
+            if (context.IsFullUpdate)
+            {
+                _vipNamePlateObjects.Clear();
+            }
+
+            foreach (var handler in handlers)
+            {
+                var player = handler.PlayerCharacter;
+                if (player == null || !_vipManager.IsVip(player.Name.TextValue))
+                {
+                    _vipNamePlateObjects.Remove(handler.GameObjectId);
+                    continue;
+                }
+
+                var namePlateObjectAddress = handler.NamePlateObjectAddress;
+                if (namePlateObjectAddress != IntPtr.Zero)
+                {
+                    _vipNamePlateObjects[handler.GameObjectId] = namePlateObjectAddress;
+                }
+            }
+        }
+
+        private void DrawVipNamePlateTags(ImDrawListPtr drawList, VipProfile profile)
+        {
+            if (_vipNamePlateObjects.Count == 0)
+            {
+                return;
+            }
+
+            var staleIds = new List<ulong>();
+
+            foreach (var (gameObjectId, namePlateObjectAddress) in _vipNamePlateObjects)
+            {
+                if (!IsCurrentVipPlayer(gameObjectId) || !DrawVipNamePlateTag(drawList, namePlateObjectAddress, profile))
+                {
+                    staleIds.Add(gameObjectId);
+                }
+            }
+
+            foreach (ulong gameObjectId in staleIds)
+            {
+                _vipNamePlateObjects.Remove(gameObjectId);
+            }
+        }
+
+        private bool IsCurrentVipPlayer(ulong gameObjectId)
+        {
+            foreach (var actor in Service.ObjectTable)
+            {
+                if (actor is IPlayerCharacter player &&
+                    player.GameObjectId == gameObjectId &&
+                    _vipManager.IsVip(player.Name.TextValue))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool DrawVipNamePlateTag(ImDrawListPtr drawList, IntPtr namePlateObjectAddress, VipProfile profile)
+        {
+            var namePlateObject = (AddonNamePlate.NamePlateObject*)namePlateObjectAddress;
+            if (namePlateObject == null || !namePlateObject->IsVisible || namePlateObject->NameText == null)
+            {
+                return false;
+            }
+
+            var nameText = namePlateObject->NameText;
+            if (!nameText->IsVisible())
+            {
+                return false;
+            }
+
+            const string tagText = "VIP";
+            const float gap = 6.0f;
+            const float paddingX = 5.0f;
+            const float paddingY = 2.0f;
+            const float rounding = 3.0f;
+
+            Vector2 textSize = ImGui.CalcTextSize(tagText);
+            Vector2 tagSize = textSize + new Vector2(paddingX * 2.0f, paddingY * 2.0f);
+
+            float scaleX = MathF.Max(0.1f, nameText->ScaleX);
+            float scaleY = MathF.Max(0.1f, nameText->ScaleY);
+            float nameWidth = namePlateObject->TextW > 0
+                ? namePlateObject->TextW * scaleX
+                : nameText->Width * scaleX;
+            float nameHeight = namePlateObject->TextH > 0
+                ? namePlateObject->TextH * scaleY
+                : nameText->Height * scaleY;
+
+            var tagPos = new Vector2(
+                nameText->ScreenX - tagSize.X - gap + profile.VipTagOffsetX,
+                nameText->ScreenY + (nameHeight - tagSize.Y) * 0.5f + profile.VipTagOffsetY);
+            var tagMax = tagPos + tagSize;
+            var textPos = tagPos + new Vector2(paddingX, paddingY);
+            uint tagColor = ColorToUint(profile.VipTagColor);
+
+            drawList.AddRectFilled(tagPos, tagMax, 0xB0000000, rounding);
+            drawList.AddText(textPos + Vector2.One, 0xFF000000, tagText);
+            drawList.AddText(textPos, tagColor, tagText);
+
+            return true;
         }
 
         private static uint ColorToUint(System.Numerics.Vector4 c)
@@ -258,6 +354,7 @@ namespace VipNameChecker
         public void Dispose()
         {
             Service.PluginInterface.UiBuilder.Draw -= Draw;
+            Service.NamePlateGui.OnPostNamePlateUpdate -= OnNamePlateUpdate;
         }
     }
 }

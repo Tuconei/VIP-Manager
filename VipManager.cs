@@ -112,6 +112,7 @@ namespace VipNameChecker
                             }
                         }
                     }
+                    Service.NamePlateGui.RequestRedraw();
                     Service.Chat.Print($"[VIP Checker] VIP List loaded ({_vipNames.Count} entries).");
                 }
                 catch (Exception ex)

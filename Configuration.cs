@@ -27,6 +27,9 @@ namespace VipNameChecker
         public bool RingSolid { get; set; } = false;
         public Vector4 RingColor { get; set; } = new Vector4(0f, 1f, 0f, 1f);
         public bool ShowVipTag { get; set; } = true;
+        public Vector4 VipTagColor { get; set; } = new Vector4(0f, 1f, 0f, 1f);
+        public float VipTagOffsetX { get; set; } = 0.0f;
+        public float VipTagOffsetY { get; set; } = -50.0f;
         public bool ShowVipList { get; set; } = true;
         public float VipListRange { get; set; } = 30.0f;
 

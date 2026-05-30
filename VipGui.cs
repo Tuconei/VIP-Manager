@@ -98,6 +98,32 @@ namespace VipNameChecker
                 {
                     profile.ShowVipTag = showTag;
                     _config.Save();
+                    Service.NamePlateGui.RequestRedraw();
+                }
+
+                if (profile.ShowVipTag)
+                {
+                    var tagColor = profile.VipTagColor;
+                    if (ImGui.ColorEdit4("VIP Tag Color", ref tagColor, ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
+                    {
+                        profile.VipTagColor = tagColor;
+                        _config.Save();
+                        Service.NamePlateGui.RequestRedraw();
+                    }
+
+                    float tagOffsetX = profile.VipTagOffsetX;
+                    if (ImGui.SliderFloat("VIP Tag X Offset", ref tagOffsetX, -40.0f, 40.0f, "%.0f px"))
+                    {
+                        profile.VipTagOffsetX = tagOffsetX;
+                        _config.Save();
+                    }
+
+                    float tagOffsetY = profile.VipTagOffsetY;
+                    if (ImGui.SliderFloat("VIP Tag Y Offset", ref tagOffsetY, -120.0f, 40.0f, "%.0f px"))
+                    {
+                        profile.VipTagOffsetY = tagOffsetY;
+                        _config.Save();
+                    }
                 }
 
                 bool showVipList = profile.ShowVipList;
