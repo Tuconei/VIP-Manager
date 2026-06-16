@@ -15,14 +15,37 @@ The template includes:
 - `Lists` for customizing durations, VIP types, benefits, and payment/proof values
 - `Setup Guide` with recommended plugin column mappings
 
-To use it:
+### Setting up the spreadsheet
 
 1. Download `templates/VIP-Tracker-Template.xlsx`.
-2. Upload it to your own Google Drive and open it with Google Sheets.
-3. Customize durations on the `Lists` tab.
-4. Enter VIPs on `VIP Signups`.
-5. Publish only the `Plugin Export` tab as CSV.
-6. Put the spreadsheet ID into VIP Name Checker and reload the VIP list.
+2. Go to [Google Drive](https://drive.google.com/).
+3. Click `New` > `File upload`, then upload `VIP-Tracker-Template.xlsx`.
+4. Open the uploaded file with Google Sheets.
+5. Choose `File` > `Save as Google Sheets` if Drive opened it in Excel preview mode.
+6. Customize durations, VIP types, benefits, and payment/proof values on the `Lists` tab.
+7. Enter VIPs on `VIP Signups`.
+
+### Publishing the plugin export tab
+
+The plugin reads a public CSV export from Google Sheets. Publish only the generated `Plugin Export` tab, not the whole workbook.
+
+1. In Google Sheets, open the copied template.
+2. Select `File` > `Share` > `Publish to web`.
+3. In the first dropdown, choose `Plugin Export`.
+4. In the second dropdown, choose `Comma-separated values (.csv)`.
+5. Click `Publish`.
+
+### Finding the spreadsheet ID
+
+After publishing, copy the spreadsheet ID from the Google Sheets URL. It is the long value between `/d/` and `/edit`.
+
+Example:
+
+```text
+https://docs.google.com/spreadsheets/d/THIS_IS_THE_SPREADSHEET_ID/edit
+```
+
+Paste that ID into VIP Name Checker, then reload the VIP list.
 
 Recommended plugin columns:
 
