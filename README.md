@@ -34,10 +34,13 @@ Use `Benefit Resets` for benefits that come back on a schedule, such as a monthl
 1. Add the character name.
 2. Choose the benefit.
 3. Choose the reset period.
-4. Enter `Last Used` when the benefit is claimed.
-5. Leave `Include In Plugin?` as `Yes` if staff should see the reset status in game.
+4. Set `Max Uses` for benefits that can be claimed more than once per reset period.
+5. Update `Uses This Period` and `Last Used` when the benefit is claimed.
+6. Leave `Include In Plugin?` as `Yes` if staff should see the reset status in game.
 
-The sheet calculates `Next Reset`, `Available?`, and a visible note automatically. Weekly, monthly, quarterly, and yearly resets are anchored to the VIP's original signup date, not the last-used date. For example, a monthly benefit for a VIP who signed up on the 1st resets on the 1st of each month even if they used that benefit later in the month.
+The sheet calculates `Remaining Uses`, `Next Reset`, `Available?`, and a visible note automatically. Weekly, monthly, quarterly, and yearly resets are anchored to the VIP's original signup date, not the last-used date. For example, a monthly benefit for a VIP who signed up on the 1st resets on the 1st of each month even if they used that benefit later in the month.
+
+When a new signup-date anchored reset period begins, `Remaining Uses` returns to `Max Uses`. This means a monthly benefit with `Max Uses` set to `3` can show `2/3 left`, `1/3 left`, or `0/3 left; resets yyyy-mm-dd`.
 
 This does not erase history. It calculates availability from `Last Used`, which keeps the sheet auditable and avoids needing a Google Apps Script.
 
