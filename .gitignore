@@ -2,5 +2,7 @@
 [Oo]bj/
 .vs/
 *.user
-*.json
-!VipNameChecker.json
+*.csproj.user
+*.suo
+*.tmp
+packages.lock.json

@@ -19,6 +19,7 @@ namespace VipNameChecker
             Configuration.Initialize(pluginInterface);
 
             _vipManager = new VipManager(Configuration);
+            _vipManager.UpdateAutoRefresh();
 
             // Check the active profile, not just a raw ID, as ID is now inside the profile
             if (!string.IsNullOrEmpty(Configuration.GetActiveProfile().SpreadsheetId))
