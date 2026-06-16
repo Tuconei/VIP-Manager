@@ -12,6 +12,7 @@ The template includes:
 
 - `VIP Signups` for entering VIPs as they sign up
 - `Plugin Export` for the alphabetized list that should be published as CSV
+- `Benefit Resets` for tracking benefits that refresh daily, weekly, monthly, quarterly, yearly, one-time, or manually
 - `Lists` for customizing durations, VIP types, benefits, and payment/proof values
 - `Setup Guide` with recommended plugin column mappings
 
@@ -22,8 +23,23 @@ The template includes:
 3. Click `New` > `File upload`, then upload `VIP-Tracker-Template.xlsx`.
 4. Open the uploaded file with Google Sheets.
 5. Choose `File` > `Save as Google Sheets` if Drive opened it in Excel preview mode.
-6. Customize durations, VIP types, benefits, and payment/proof values on the `Lists` tab.
+6. Customize durations, VIP types, benefits, resettable benefits, and payment/proof values on the `Lists` tab.
 7. Enter VIPs on `VIP Signups`.
+8. Track recurring benefit usage on `Benefit Resets`.
+
+### Resettable benefits
+
+Use `Benefit Resets` for benefits that come back on a schedule, such as a monthly photo slot or weekly token.
+
+1. Add the character name.
+2. Choose the benefit.
+3. Choose the reset period.
+4. Enter `Last Used` when the benefit is claimed.
+5. Leave `Include In Plugin?` as `Yes` if staff should see the reset status in game.
+
+The sheet calculates `Next Reset`, `Available?`, and a visible note automatically. When the reset date passes, `Available?` changes back to `Yes`.
+
+This does not erase history. It calculates availability from `Last Used`, which keeps the sheet auditable and avoids needing a Google Apps Script.
 
 ### Publishing the plugin export tab
 
