@@ -1,6 +1,8 @@
 [Bb]in/
 [Oo]bj/
 .vs/
+node_modules/
+outputs/
 *.user
 *.csproj.user
 *.suo
