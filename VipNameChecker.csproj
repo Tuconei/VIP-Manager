@@ -8,7 +8,12 @@
 
 		<AssemblyName>VipNameChecker</AssemblyName>
 		<RootNamespace>VipNameChecker</RootNamespace>
-		<Version>1.2.2.0</Version>
+		<Version>1.2.3.0</Version>
+		<Deterministic>true</Deterministic>
+		<PathMap>$(MSBuildProjectDirectory)=/_/VipNameChecker</PathMap>
+		<EnableSourceLink>false</EnableSourceLink>
+		<PublishRepositoryUrl>false</PublishRepositoryUrl>
+		<EmbedUntrackedSources>false</EmbedUntrackedSources>
 
 		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 

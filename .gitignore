@@ -1,6 +1,7 @@
 [Bb]in/
 [Oo]bj/
 .vs/
+.claude/
 node_modules/
 outputs/
 *.user
