@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="..\NativeVipTitles.cs" Link="NativeVipTitles.cs" />
     <Compile Include="..\NativeTitleObserver.cs" Link="NativeTitleObserver.cs" />
+    <Compile Include="..\SheetLink.cs" Link="SheetLink.cs" />
     <Compile Include="..\Service.cs" Link="Service.cs" />
     <Compile Include="..\VipManager.cs" Link="VipManager.cs" />
     <Compile Include="..\NativeTagSettings.cs" Link="NativeTagSettings.cs" />

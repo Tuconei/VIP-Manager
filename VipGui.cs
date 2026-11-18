@@ -197,6 +197,21 @@ namespace VipNameChecker
 
                 ImGui.SameLine();
 
+                bool canOpenSheet = SheetLink.TryCreate(profile.SpreadsheetId, out string sheetUrl, out string sheetError);
+                ImGui.BeginDisabled(!canOpenSheet);
+                if (ImGui.Button("Open linked Google Sheet"))
+                {
+                    try { Dalamud.Utility.Util.OpenLink(sheetUrl); }
+                    catch (Exception ex)
+                    {
+                        Service.PluginLog.Error(ex, "[VIP] Could not open the linked sheet in the default browser.");
+                        Service.Chat.Print("[VIP] Could not open the linked sheet. Check your default browser and /xllog.");
+                    }
+                }
+                ImGui.EndDisabled();
+                if (!canOpenSheet) ImGui.TextWrapped(sheetError);
+                ImGui.TextWrapped("Opens this profile's linked sheet in your default browser. Google controls access; the plugin does not change sharing or edit the sheet.");
+
                 bool autoRefresh = profile.AutoRefreshEnabled;
                 if (ImGui.Checkbox("Auto Refresh", ref autoRefresh))
                 {

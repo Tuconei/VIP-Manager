@@ -2,7 +2,7 @@
   "Author": "Tuconei",
   "Name": "VIP Name Checker",
   "InternalName": "VipNameChecker",
-  "AssemblyVersion": "1.3.0.2",
+  "AssemblyVersion": "1.3.0.3",
   "Description": "VIP indicators from a Google Sheet, with original overlays and controlled native title or FC-tag placements.",
   "Punchline": "Highlights specific players from a google sheet.",
   "ApplicableVersion": "any",

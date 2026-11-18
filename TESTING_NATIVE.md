@@ -1,4 +1,4 @@
-# VIP-Manager native placement testing (1.3.0.2)
+# VIP-Manager native placement testing (1.3.0.3)
 
 This is the actual VipNameChecker plugin, not either old /vippersist or /vipplace
 variant. Do NOT load them together or alongside another VipNameChecker DLL.
@@ -82,7 +82,7 @@ From the repository (Release only; Debug retains the original dev-output workflo
 Offline checks do not establish real native visuals, wall occlusion, live sync or
 successful cleanup in game. Independent review and actual test results must be
 reported separately. Do not describe this as a production-validated release.
-## Persisted enabled-state safety (1.3.0.2)
+## Persisted enabled-state safety (1.3.0.3)
 NativeVipEnabled is per profile and defaults false for old/migrated/new profiles.
 Successful arm saves true; explicit disarm saves false, even when already clean.
 prepare-unload / Pause for reload keeps the flag, cleans the current field and
@@ -104,3 +104,15 @@ sheet snapshots, and intercept only config saves. They perform no game/network/f
 settings writes. This is lifecycle/sheet-gating evidence, not a real HTTP or visual
 in-game reload result.
 A normal FULL game exit/restart does not require prepare-unload: the entire UI dies with the process, and remembered enabled profiles resume next launch. prepare-unload is for in-process plugin disable/update/hot reload when the UI remains alive.
+
+## Open linked Google Sheet button (1.3.0.3)
+In /vip, beside Reload VIP List, Open linked Google Sheet opens the active profile's
+sheet in the default browser. Missing or invalid IDs disable the button and show an
+explanation. IDs are trimmed and strictly limited to 20-128 ASCII letters, digits,
+underscores or hyphens; pasted full URLs, path/query characters and controls are
+rejected. The destination is always https://docs.google.com/spreadsheets/d/ID/edit.
+This is normal navigation only: it does not request scopes, change sharing, fetch
+credentials or edit the sheet. Google controls the browser user's permissions.
+Browser-launch errors produce a chat/log error, not fallback shell commands.
+Offline tests only verify URL construction and profile isolation; no browser is
+opened by tests. A manual click/default-browser check remains separate.

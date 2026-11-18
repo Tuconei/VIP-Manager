@@ -411,6 +411,18 @@ var prefixProfile = new VipProfile { TagPlacement = VipTagPlacement.NativeTitle 
 var beforePrefixSwitch = NativeArmSelection.From(prefixProfile); prefixProfile.TagPlacement = VipTagPlacement.NativeTitlePrefix;
 Check(beforePrefixSwitch != NativeArmSelection.From(prefixProfile), "suffix-to-prefix setting invalidates armed snapshot and requires cleanup");
 Check(Newtonsoft.Json.JsonConvert.DeserializeObject<VipProfile>(Newtonsoft.Json.JsonConvert.SerializeObject(prefixProfile))!.TagPlacement == VipTagPlacement.NativeTitlePrefix, "prefix mode config roundtrip");
+var validSheet = "1234567890_ABCDEFGHIJ-abcdefghij";
+Check(SheetLink.TryCreate(validSheet, out var linkedUrl, out var linkError) && linkedUrl == "https://docs.google.com/spreadsheets/d/" + validSheet + "/edit" && linkError.Length == 0, "sheet link builds fixed HTTPS Google destination from ID only");
+Check(SheetLink.TryCreate("  " + validSheet + "  ", out var trimmedUrl, out _) && trimmedUrl == linkedUrl, "sheet link trims surrounding input without mutating configuration");
+Check(SheetLink.TryCreate(new string('a', 20), out _, out _) && SheetLink.TryCreate(new string('Z', 128), out _, out _), "sheet link accepts only bounded valid ID lengths");
+foreach (string? bad in new string?[] { null, "", "   ", "short", new string('a',129), "https://docs.google.com/spreadsheets/d/" + validSheet + "/edit", validSheet + "/other", validSheet + "?share=yes", validSheet + "#fragment", validSheet + "&cmd=run", validSheet + ";calc", validSheet + "\"", validSheet + "'", validSheet + " ", validSheet + "\nwrong", validSheet + "%2F", validSheet + "\\file", validSheet + "\uFF21", validSheet + "\twrong" })
+{
+    if (bad == validSheet + " ") continue; // surrounding whitespace is intentionally trimmed
+    Check(!SheetLink.TryCreate(bad, out var rejectedUrl, out var explanation) && rejectedUrl.Length == 0 && explanation.Length > 0, "sheet link rejects malformed URL/control/shell/Unicode input with no target");
+}
+var profileOne = new VipProfile { SpreadsheetId = validSheet };
+var profileTwo = new VipProfile { SpreadsheetId = new string('b',25) };
+Check(SheetLink.TryCreate(profileOne.SpreadsheetId, out var one, out _) && SheetLink.TryCreate(profileTwo.SpreadsheetId, out var two, out _) && one != two && profileOne.SpreadsheetId == validSheet, "sheet target derives independently from active profile ID without saving config");
 RuntimeEnableChecks.Run(Check);
 Console.WriteLine($"{passed} checks passed. No game process or live settings accessed.");
 
