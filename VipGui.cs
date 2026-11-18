@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using System;
 using System.Numerics;
 using System.Linq;
@@ -9,6 +9,9 @@ namespace VipNameChecker
     {
         private readonly Configuration _config;
         private readonly VipManager _vipManager;
+        private readonly NativeVipTitles _native;
+        private string _nativeHex = "";
+        private string _nativeHexSource = "";
         private bool _isOpen = false;
 
         // Temporary input buffers for adding new columns
@@ -22,8 +25,9 @@ namespace VipNameChecker
             set => _isOpen = value;
         }
 
-        public VipGui(Configuration config, VipManager manager)
+        internal VipGui(Configuration config, VipManager manager, NativeVipTitles native)
         {
+            _native = native;
             _config = config;
             _vipManager = manager;
             Service.PluginInterface.UiBuilder.Draw += Draw;
@@ -39,7 +43,9 @@ namespace VipNameChecker
             ImGui.SetNextWindowSize(new Vector2(450, 500), ImGuiCond.FirstUseEver);
             if (ImGui.Begin("VIP Name Checker Settings", ref _isOpen))
             {
+                ImGui.BeginDisabled(!_native.SafeToUnload);
                 DrawProfileSelector();
+                ImGui.EndDisabled();
 
                 ImGui.Separator();
 
@@ -101,31 +107,65 @@ namespace VipNameChecker
                     Service.NamePlateGui.RequestRedraw();
                 }
 
+                ImGui.BeginDisabled(!_native.SafeToUnload);
+                int placement = (int)profile.TagPlacement;
+                string[] placements = { "Floating overlay (original)", "Native title suffix", "Native FC-tag suffix", "Native title prefix" };
+                if (ImGui.Combo("VIP placement", ref placement, placements, placements.Length))
+                {
+                    profile.TagPlacement = (VipTagPlacement)placement;
+                    _config.Save();
+                    Service.NamePlateGui.RequestRedraw();
+                }
                 if (profile.ShowVipTag)
                 {
                     var tagColor = profile.VipTagColor;
-                    if (ImGui.ColorEdit4("VIP Tag Color", ref tagColor, ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
+                    bool nativeMode = NativeTagSettings.IsNative(profile.TagPlacement);
+                    var rgbPicker = new Vector3(tagColor.X, tagColor.Y, tagColor.Z);
+                    bool changedColor = nativeMode
+                        ? ImGui.ColorEdit3("VIP Native RGB / Hex", ref rgbPicker, ImGuiColorEditFlags.DisplayHex)
+                        : ImGui.ColorEdit4("VIP Tag Color / Hex", ref tagColor, ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf);
+                    if (nativeMode) tagColor = new Vector4(rgbPicker, profile.VipTagColor.W);
+                    if (changedColor)
                     {
                         profile.VipTagColor = tagColor;
                         _config.Save();
                         Service.NamePlateGui.RequestRedraw();
                     }
-
-                    float tagOffsetX = profile.VipTagOffsetX;
-                    if (ImGui.SliderFloat("VIP Tag X Offset", ref tagOffsetX, -40.0f, 40.0f, "%.0f px"))
+                    if (NativeTagSettings.IsNative(profile.TagPlacement))
                     {
-                        profile.VipTagOffsetX = tagOffsetX;
-                        _config.Save();
+                        string source = profile.Id + NativeTagSettings.ToHex(profile.VipTagColor);
+                        if (_nativeHexSource != source) { _nativeHexSource = source; _nativeHex = NativeTagSettings.ToHex(profile.VipTagColor); }
+                        ImGui.InputText("Native RGB #RRGGBB", ref _nativeHex, 8);
+                        ImGui.SameLine();
+                        if (ImGui.Button("Apply Hex") && NativeTagSettings.TryHex(_nativeHex, out var rgb))
+                        {
+                            profile.VipTagColor = new Vector4(rgb.X, rgb.Y, rgb.Z, profile.VipTagColor.W);
+                            _config.Save();
+                        }
+                        if (!NativeTagSettings.TryHex(_nativeHex, out _)) ImGui.TextUnformatted("Enter six hex digits, e.g. #FFBF1A. Invalid input is not saved.");
+                        ImGui.TextWrapped("Native color uses RGB at full opacity; existing title/FC bytes stay intact. Disarm before changing color, placement or profile.");
                     }
-
-                    float tagOffsetY = profile.VipTagOffsetY;
-                    if (ImGui.SliderFloat("VIP Tag Y Offset", ref tagOffsetY, -120.0f, 40.0f, "%.0f px"))
+                    else
                     {
-                        profile.VipTagOffsetY = tagOffsetY;
-                        _config.Save();
+                        float x = profile.VipTagOffsetX;
+                        if (ImGui.SliderFloat("VIP Tag X Offset", ref x, -40, 40, "%.0f px")) { profile.VipTagOffsetX = x; _config.Save(); }
+                        float y = profile.VipTagOffsetY;
+                        if (ImGui.SliderFloat("VIP Tag Y Offset", ref y, -120, 40, "%.0f px")) { profile.VipTagOffsetY = y; _config.Save(); }
                     }
                 }
-
+                ImGui.EndDisabled();
+                ImGui.TextWrapped("Native status: " + _native.Status);
+                bool rememberNative = profile.NativeVipEnabled;
+                ImGui.BeginDisabled(!rememberNative && (!_native.SafeToUnload || !NativeTagSettings.IsNative(profile.TagPlacement) || !profile.IsOverlayEnabled || !profile.ShowVipTag));
+                if (ImGui.Checkbox("Enable native VIP (remember across reloads)", ref rememberNative)) _native.SetArmed(rememberNative);
+                ImGui.EndDisabled();
+                ImGui.BeginDisabled(!_native.SafeToUnload || !NativeTagSettings.IsNative(profile.TagPlacement) || !profile.IsOverlayEnabled || !profile.ShowVipTag);
+                if (ImGui.Button("Enable / resume native VIP")) _native.SetArmed(true);
+                ImGui.EndDisabled();
+                ImGui.SameLine();
+                if (ImGui.Button("Turn off / clean native VIP")) _native.SetArmed(false);
+                if (ImGui.Button("Pause for reload (keep enabled)")) _native.PrepareUnload();
+                ImGui.TextWrapped("Before unload: pause for reload to keep the saved preference, or turn off to remember disabled. Wait for cleanup acknowledgement, ready status and visual removal. Saved enabled profiles resume automatically on next load; a paused/conflicted instance never auto-rearms. Native fields obey visibility; ring/floating remain independent overlays.");
                 bool showVipList = profile.ShowVipList;
                 if (ImGui.Checkbox("Show VIPs In Range List", ref showVipList))
                 {
@@ -195,6 +235,8 @@ namespace VipNameChecker
             {
                 _config.ActiveProfileIndex = currentIdx;
                 _config.Save();
+                _vipManager.UpdateAutoRefresh();
+                Service.NamePlateGui.RequestRedraw();
                 _vipManager.LoadVipNames(); // Reload data when switching profiles
             }
 
@@ -227,6 +269,7 @@ namespace VipNameChecker
                     _config.Profiles.Add(newProfile);
                     _config.ActiveProfileIndex = _config.Profiles.Count - 1;
                     _config.Save();
+                    _vipManager.UpdateAutoRefresh();
                     _vipManager.LoadVipNames();
                     ImGui.CloseCurrentPopup();
                 }
@@ -241,6 +284,7 @@ namespace VipNameChecker
                     _config.Profiles.RemoveAt(_config.ActiveProfileIndex);
                     _config.ActiveProfileIndex = 0;
                     _config.Save();
+                    _vipManager.UpdateAutoRefresh();
                     _vipManager.LoadVipNames();
                     ImGui.CloseCurrentPopup();
                 }

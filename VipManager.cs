@@ -5,165 +5,168 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace VipNameChecker
+namespace VipNameChecker;
+
+public sealed class VipManager : IDisposable
 {
-    public class VipManager : IDisposable
+    private readonly HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> temporaryNames = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> data = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object sync = new();
+    private readonly Configuration config;
+    private readonly HttpClient http = new();
+    private readonly CancellationTokenSource lifetime = new();
+    private Timer? refreshTimer;
+    private Guid loadedProfile;
+    private string loadedSheet = "";
+    private int request;
+    private long revision;
+    private bool disposed;
+    public long Revision => Interlocked.Read(ref revision);
+
+    public VipManager(Configuration config)
     {
-        // Stores VIP names
-        private readonly HashSet<string> _vipNames = new();
+        this.config = config;
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("VIP-Manager/1.3.0");
+    }
 
-        // Stores data for each VIP. Key: Name (lowercase). Value: List of strings corresponding to the Active Profile's Columns.
-        private readonly Dictionary<string, List<string>> _vipData = new();
-
-        private readonly object _lock = new();
-        private readonly Configuration _config;
-        private readonly HttpClient _http;
-        private Timer? _refreshTimer;
-
-        public VipManager(Configuration config)
+    public void UpdateAutoRefresh()
+    {
+        refreshTimer?.Dispose();
+        refreshTimer = null;
+        var profile = config.GetActiveProfile();
+        if (!disposed && profile.AutoRefreshEnabled && profile.AutoRefreshIntervalMinutes > 0)
         {
-            _config = config;
-            _http = new HttpClient();
-        }
-
-        public void UpdateAutoRefresh()
-        {
-            var profile = _config.GetActiveProfile();
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
-
-            if (profile.AutoRefreshEnabled && profile.AutoRefreshIntervalMinutes > 0)
+            var interval = TimeSpan.FromMinutes(profile.AutoRefreshIntervalMinutes);
+            refreshTimer = new Timer(state =>
             {
-                var interval = TimeSpan.FromMinutes(profile.AutoRefreshIntervalMinutes);
-                _refreshTimer = new Timer(_ => LoadVipNames(), null, interval, interval);
+                _ = Service.Framework.RunOnFrameworkThread(() => { if (!disposed) LoadVipNames(); });
+            }, null, interval, interval);
+        }
+    }
+
+    public void SetTemporaryVip(string name, bool add)
+    {
+        lock (sync)
+        {
+            if (add ? temporaryNames.Add(name.Trim()) : temporaryNames.Remove(name.Trim()))
+                Interlocked.Increment(ref revision);
+        }
+    }
+
+    public void ClearTemporaryVips()
+    {
+        lock (sync)
+        {
+            temporaryNames.Clear();
+            Interlocked.Increment(ref revision);
+        }
+    }
+
+    public void LoadVipNames()
+    {
+        if (disposed) return;
+        var profile = config.GetActiveProfile();
+        Guid profileId = profile.Id;
+        string sheetId = profile.SpreadsheetId;
+        int loadRequest = ++request;
+        if (string.IsNullOrWhiteSpace(sheetId))
+        {
+            lock (sync)
+            {
+                names.Clear();
+                data.Clear();
+                loadedProfile = profileId;
+                loadedSheet = sheetId;
+                Interlocked.Increment(ref revision);
             }
+            Service.Chat.Print("[VIP] No sheet configured. Use /vip native add Full Name for a session-only test.");
+            return;
         }
+        var columns = profile.Columns.Select(c => ParseColumnToIndex(c.CsvColumn)).ToArray();
+        _ = FetchAsync(profileId, sheetId, columns, loadRequest, lifetime.Token);
+    }
 
-        public void Dispose()
+    private async Task FetchAsync(Guid profileId, string sheetId, int[] columns, int loadRequest, CancellationToken token)
+    {
+        try
         {
-            _refreshTimer?.Dispose();
-            _refreshTimer = null;
-            _http.Dispose();
-        }
-
-        public void LoadVipNames()
-        {
-            var profile = _config.GetActiveProfile();
-
-            if (string.IsNullOrEmpty(profile.SpreadsheetId))
+            string csv = await http.GetStringAsync($"https://docs.google.com/spreadsheets/d/{Uri.EscapeDataString(sheetId)}/export?format=csv", token).ConfigureAwait(false);
+            var fetched = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            // Retain the original name-only CSV interpretation for this focused test.
+            foreach (string line in csv.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                Service.Chat.Print("[VIP] Error: Sheet ID not set for current profile.");
-                return;
+                var cells = line.Split(',');
+                string name = cells[0].Trim('"').Split('(')[0].Trim();
+                if (name.Length == 0) continue;
+                fetched[name] = columns.Select(i => i >= 0 && i < cells.Length ? cells[i].Trim('"').Trim() : "-").ToList();
             }
-
-            Task.Run(async () =>
+            await Service.Framework.RunOnFrameworkThread(() =>
             {
-                try
+                if (disposed || loadRequest != request) return;
+                var current = config.GetActiveProfile();
+                if (current.Id != profileId || current.SpreadsheetId != sheetId) return;
+                lock (sync)
                 {
-                    Service.PluginLog.Information($"Fetching VIP list for profile '{profile.Name}'...");
-
-                    string url = $"https://docs.google.com/spreadsheets/d/{profile.SpreadsheetId}/export?format=csv";
-
-                    _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-
-                    var csvData = await _http.GetStringAsync(url);
-                    var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    // Pre-calculate column indices to avoid parsing on every row
-                    var columnIndices = profile.Columns.Select(c => ParseColumnToIndex(c.CsvColumn)).ToList();
-
-                    lock (_lock)
-                    {
-                        _vipNames.Clear();
-                        _vipData.Clear();
-
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            var line = lines[i];
-                            // Simple CSV split - standard CSV handling handles commas inside quotes, but simple split matches original implementation
-                            // If your sheets have commas in cells, a more robust CSV parser is needed.
-                            var columns = line.Split(',');
-
-                            if (columns.Length > 0)
-                            {
-                                string rawName = columns[0]; // Column A is always assumed to be Name
-                                rawName = rawName.Trim('"');
-                                string cleanName = rawName.Split('(')[0].Trim();
-
-                                if (!string.IsNullOrWhiteSpace(cleanName))
-                                {
-                                    string key = cleanName.ToLower();
-                                    _vipNames.Add(key);
-
-                                    var rowData = new List<string>();
-
-                                    foreach (var index in columnIndices)
-                                    {
-                                        string cellValue = "-";
-                                        if (index >= 0 && index < columns.Length)
-                                        {
-                                            cellValue = columns[index].Trim('"').Trim();
-                                        }
-                                        rowData.Add(cellValue);
-                                    }
-
-                                    _vipData[key] = rowData;
-                                }
-                            }
-                        }
-                    }
-                    Service.NamePlateGui.RequestRedraw();
-                    Service.Chat.Print($"[VIP Checker] VIP List loaded ({_vipNames.Count} entries).");
+                    names.Clear();
+                    data.Clear();
+                    foreach (var row in fetched) { names.Add(row.Key); data[row.Key] = row.Value; }
+                    loadedProfile = profileId;
+                    loadedSheet = sheetId;
+                    Interlocked.Increment(ref revision);
                 }
-                catch (Exception ex)
-                {
-                    Service.PluginLog.Error(ex, "Failed to fetch VIP names.");
-                    Service.Chat.Print("[VIP] Load failed. Check /xllog.");
-                }
-            });
+                Service.Chat.Print($"[VIP] VIP list loaded ({fetched.Count} entries).");
+            }).ConfigureAwait(false);
         }
-
-        public bool IsVip(string name)
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception ex)
         {
-            if (string.IsNullOrEmpty(name)) return false;
-            lock (_lock) return _vipNames.Contains(name.ToLower());
+            if (token.IsCancellationRequested) return;
+            Service.PluginLog.Error(ex, "Failed to fetch VIP names.");
+            await Service.Framework.RunOnFrameworkThread(() =>
+            {
+                if (!disposed && loadRequest == request) Service.Chat.Print("[VIP] Load failed. Check /xllog.");
+            }).ConfigureAwait(false);
         }
+    }
 
-        // Returns the list of column values for a specific player
-        public List<string>? GetVipData(string name)
+    public bool IsVip(string name)
+    {
+        var current = config.GetActiveProfile();
+        lock (sync)
+            return temporaryNames.Contains(name) ||
+                (loadedProfile == current.Id && loadedSheet == current.SpreadsheetId && names.Contains(name));
+    }
+
+    public List<string>? GetVipData(string name)
+    {
+        var current = config.GetActiveProfile();
+        lock (sync)
+            return loadedProfile == current.Id && loadedSheet == current.SpreadsheetId && data.TryGetValue(name, out var row)
+                ? new List<string>(row) : null;
+    }
+
+    private static int ParseColumnToIndex(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return -1;
+        input = input.ToUpperInvariant().Trim();
+        if (int.TryParse(input, out int number)) return number - 1;
+        int index = 0;
+        foreach (char c in input)
         {
-            if (string.IsNullOrEmpty(name)) return null;
-            lock (_lock)
-            {
-                if (_vipData.TryGetValue(name.ToLower(), out var data))
-                {
-                    return data;
-                }
-                return null;
-            }
+            if (c < 'A' || c > 'Z') return -1;
+            index = index * 26 + c - 'A' + 1;
         }
+        return index - 1;
+    }
 
-        // Helper to convert "A", "B", "C" or "1", "2", "3" to 0-based index
-        private int ParseColumnToIndex(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return -1;
-            input = input.ToUpper().Trim();
-
-            // Check if it's a number
-            if (int.TryParse(input, out int result))
-            {
-                return result - 1; // User types 1 for Column A, convert to 0
-            }
-
-            // Convert letters to index (A=0, B=1, AA=26)
-            int index = 0;
-            foreach (char c in input)
-            {
-                if (c < 'A' || c > 'Z') return -1; // Invalid character
-                index *= 26;
-                index += (c - 'A' + 1);
-            }
-            return index - 1;
-        }
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        refreshTimer?.Dispose();
+        lifetime.Cancel();
+        http.Dispose();
+        lifetime.Dispose();
     }
 }

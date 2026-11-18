@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Gui.NamePlate;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -14,12 +14,14 @@ namespace VipNameChecker
     {
         private readonly VipManager _vipManager;
         private readonly Configuration _config;
+        private readonly Func<bool> _canDrawFloating;
         private readonly Dictionary<ulong, IntPtr> _vipNamePlateObjects = new();
 
-        public VipOverlay(VipManager manager, Configuration config)
+        public VipOverlay(VipManager manager, Configuration config, Func<bool>? canDrawFloating = null)
         {
             _vipManager = manager;
             _config = config;
+            _canDrawFloating = canDrawFloating ?? (() => true);
             Service.PluginInterface.UiBuilder.Draw += Draw;
             Service.NamePlateGui.OnPostNamePlateUpdate += OnNamePlateUpdate;
         }
@@ -67,7 +69,7 @@ namespace VipNameChecker
                 }
             }
 
-            if (profile.ShowVipTag)
+            if (profile.ShowVipTag && profile.TagPlacement == VipTagPlacement.Floating && _canDrawFloating())
             {
                 DrawVipNamePlateTags(drawList, profile);
             }
@@ -230,7 +232,7 @@ namespace VipNameChecker
         private void OnNamePlateUpdate(INamePlateUpdateContext context, IReadOnlyList<INamePlateUpdateHandler> handlers)
         {
             var profile = _config.GetActiveProfile();
-            if (!profile.IsOverlayEnabled || !profile.ShowVipTag)
+            if (!profile.IsOverlayEnabled || !profile.ShowVipTag || profile.TagPlacement != VipTagPlacement.Floating || !_canDrawFloating())
             {
                 _vipNamePlateObjects.Clear();
                 return;
