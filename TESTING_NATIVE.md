@@ -116,3 +116,20 @@ credentials or edit the sheet. Google controls the browser user's permissions.
 Browser-launch errors produce a chat/log error, not fallback shell commands.
 Offline tests only verify URL construction and profile isolation; no browser is
 opened by tests. A manual click/default-browser check remains separate.
+## 1.3.0.4 commands/help manual checks
+1. Open /vip help twice: it remains open. Close using X and reopen. Resize/scroll
+   through all commands and setup sections. Open settings and Help / Commands;
+   close either window independently.
+2. Exercise each display command bare, on, off, toggle; repeat explicit on/off.
+   Verify settings UI and display agree, including master off retaining features.
+3. Invalid arguments and unknown commands must not toggle the settings window or
+   mutate settings. Status should match the active profile without changing it.
+4. /vip reload fetches sheet data only; /vip sheet opens the same validated browser
+   destination as the existing button. Invalid/missing ID should explain failure.
+5. Native mode: master/tag off triggers cleanup/pause; on does not bypass pause.
+   After acknowledged cleanup, /vip native arm resumes. Ring/list do not disarm.
+6. Verify saved display choices survive a safe plugin reload. Do not update a
+   loaded native instance without the existing prepare-unload sequence.
+
+Offline tests cover command routing and native lifecycle with service proxies,
+not actual ImGui visuals, default-browser launch, HTTP or live game behavior.

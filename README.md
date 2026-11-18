@@ -77,3 +77,25 @@ Recommended plugin columns:
 | Notes | G | 220 |
 
 Column A must remain the character name because the plugin uses it to match players.
+
+## Commands and in-game guide (testing 1.3.0.4)
+
+Use `/vip help` to open the in-game command reference and setup guide, or click
+**Help / Commands** in settings. The guide is separate from settings; repeated
+`/vip help` opens rather than toggles it.
+
+- `/vip overlay [on|off|toggle]`: master switch for every VIP display.
+- `/vip ring [on|off|toggle]`, `/vip tag [on|off|toggle]`, `/vip list [on|off|toggle]`:
+  individual display switches. Omit the argument to toggle; explicit on/off is
+  repeatable for macros. Settings save per active profile.
+- `/vip enable` and `/vip disable`: existing master-switch aliases.
+- `/vip reload`: re-fetch the active profile's Google Sheet, not reload the plugin.
+- `/vip sheet`: open its validated linked sheet in the default browser.
+- `/vip status`: print profile/display/refresh/native state without changing it.
+
+Native cleanup safeguards are unchanged. Master/tag changes pause native display;
+wait for cleanup and explicitly `/vip native arm` to resume if paused. Ring/list
+changes do not pause native display. Before an in-process plugin update use
+`/vip native prepare-unload`, wait for acknowledgement and readiness, and visually
+confirm marker removal. All existing `/vip native` diagnostics/session-test
+commands are documented in the guide; sheet editing remains outside the plugin.

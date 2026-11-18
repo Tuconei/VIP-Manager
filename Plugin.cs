@@ -11,6 +11,8 @@ namespace VipNameChecker
         private readonly VipOverlay _overlay;
         private readonly NativeVipTitles _native;
         private readonly VipGui _gui;
+        private readonly VipHelpWindow _help;
+        private readonly VipCommands _commands;
 
         public Plugin(IDalamudPluginInterface pluginInterface)
         {
@@ -30,76 +32,37 @@ namespace VipNameChecker
 
             _native = new NativeVipTitles(_vipManager, Configuration);
             _overlay = new VipOverlay(_vipManager, Configuration, () => _native.SafeToUnload);
-            _gui = new VipGui(Configuration, _vipManager, _native);
+            _help = new VipHelpWindow();
+            _gui = new VipGui(Configuration, _vipManager, _native, _help.Open);
+            _commands = new VipCommands(Configuration, () => _gui.IsOpen = !_gui.IsOpen,
+                _help.Open, _vipManager.LoadVipNames, OpenLinkedSheet,
+                () => Service.NamePlateGui.RequestRedraw(), text => Service.Chat.Print(text), () => _native.Status);
 
             Service.CommandManager.AddHandler("/vip", new CommandInfo(OnCommand)
             {
-                HelpMessage = "Opens the VIP plugin settings. Options: enable, disable, ring, tag, list, native, help."
+                HelpMessage = "Opens VIP settings. /vip help opens the command and setup guide. Options: overlay, ring, tag, list, reload, sheet, status, native."
             });
         }
 
         private void OnCommand(string command, string args)
         {
-            if (args.Trim().Equals("native", System.StringComparison.OrdinalIgnoreCase) || args.Trim().StartsWith("native ", System.StringComparison.OrdinalIgnoreCase))
-            { OnNativeCommand(args.Trim()[6..].Trim()); return; }
-            var arg = args.Trim().ToLowerInvariant();
-
-            if (string.IsNullOrEmpty(arg))
-            {
-                _gui.IsOpen = !_gui.IsOpen;
-                return;
-            }
-
-            var profile = Configuration.GetActiveProfile();
-            bool changed = true;
-
-            switch (arg)
-            {
-                case "enable":
-                    profile.IsOverlayEnabled = true;
-                    Service.Chat.Print("[VIP] Overlay enabled.");
-                    break;
-                case "disable":
-                    profile.IsOverlayEnabled = false;
-                    Service.Chat.Print("[VIP] Overlay disabled.");
-                    break;
-                case "ring":
-                    profile.ShowHighlightRing = !profile.ShowHighlightRing;
-                    Service.Chat.Print($"[VIP] Highlight Ring {(profile.ShowHighlightRing ? "enabled" : "disabled")}.");
-                    break;
-                case "tag":
-                    profile.ShowVipTag = !profile.ShowVipTag;
-                    Service.Chat.Print($"[VIP] Overhead Tag {(profile.ShowVipTag ? "enabled" : "disabled")}.");
-                    break;
-                case "list":
-                    profile.ShowVipList = !profile.ShowVipList;
-                    Service.Chat.Print($"[VIP] Range List {(profile.ShowVipList ? "enabled" : "disabled")}.");
-                    break;
-                case "help":
-                    Service.Chat.Print("VIP Manager Commands:");
-                    Service.Chat.Print("/vip - Open/Close Settings");
-                    Service.Chat.Print("/vip enable - Enable Overlay");
-                    Service.Chat.Print("/vip disable - Disable Overlay");
-                    Service.Chat.Print("/vip ring - Toggle Highlight Ring");
-                    Service.Chat.Print("/vip tag - Toggle Overhead Tag");
-                    Service.Chat.Print("/vip list - Toggle Range List");
-                    Service.Chat.Print("/vip help - Show this help message");
-                    Service.Chat.Print("/vip native status|arm|disarm|add Full Name|remove Full Name|clear - Controlled native placement testing");
-                    changed = false;
-                    break;
-                default:
-                    // If argument is not recognized, toggle GUI
-                    _gui.IsOpen = !_gui.IsOpen;
-                    changed = false;
-                    break;
-            }
-
-            if (changed)
-            {
-                Configuration.Save();
-            }
+            var words = args.Split((char[]?)null, 2, System.StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length > 0 && words[0].Equals("native", System.StringComparison.OrdinalIgnoreCase))
+            { OnNativeCommand(words.Length > 1 ? words[1] : ""); return; }
+            _commands.Execute(args);
         }
 
+        private void OpenLinkedSheet()
+        {
+            if (!SheetLink.TryCreate(Configuration.GetActiveProfile().SpreadsheetId, out string url, out string error))
+            { Service.Chat.Print("[VIP] " + error); return; }
+            try { Dalamud.Utility.Util.OpenLink(url); }
+            catch (System.Exception ex)
+            {
+                Service.PluginLog.Error(ex, "[VIP] Could not open the linked sheet in the default browser.");
+                Service.Chat.Print("[VIP] Could not open the linked sheet. Check your default browser and /xllog.");
+            }
+        }
         private void OnNativeCommand(string args)
         {
             var split = args.Split(' ', 2, System.StringSplitOptions.RemoveEmptyEntries);
@@ -128,6 +91,7 @@ namespace VipNameChecker
             Service.CommandManager.RemoveHandler("/vip");
             _native.Dispose();
             _gui?.Dispose();
+            _help.Dispose();
             _overlay?.Dispose();
             _vipManager?.Dispose();
         }

@@ -61,6 +61,24 @@ internal static class RuntimeEnableChecks
         disabledNative.SetArmed(false); Acknowledge(disabledNative);
         check(!disabledConfig.GetActiveProfile().NativeVipEnabled, "disarm already-clean runtime still persists off");
         disabledNative.Dispose();
+        // Actual command routing against the native lifecycle, without native handlers.
+        foreach (string command in new[] { "overlay", "tag" })
+        {
+            var commandProfile = new VipProfile { TagPlacement = VipTagPlacement.NativeTitle, NativeVipEnabled = true };
+            var commandConfig = new Configuration { Profiles = new() { commandProfile } }; commandConfig.Initialize(pi);
+            using var commandManager = new VipManager(commandConfig);
+            using var commandNative = new NativeVipTitles(commandManager, commandConfig);
+            Tick(commandNative);
+            var commands = new VipCommands(commandConfig, () => {}, () => {}, () => {}, () => {}, () => {}, _ => {}, () => commandNative.Status);
+            commands.Execute(command + " off"); Tick(commandNative);
+            check(commandNative.Status.Contains("session paused=True") && !commandNative.Status.Contains("armed=True"), command + " off commands pause actual native runtime");
+            Acknowledge(commandNative); commands.Execute(command + " on"); Tick(commandNative);
+            check(commandNative.SafeToUnload && commandProfile.NativeVipEnabled && !commandNative.Status.Contains("armed=True"), command + " on preserves cleanup guard and does not silently rearm");
+            check(commandNative.SetArmed(true), "explicit native resume after " + command + " command cleanup");
+            commands.Execute("ring off"); commands.Execute("list off"); Tick(commandNative);
+            check(commandNative.Status.Contains("armed=True"), "ring/list commands do not disarm native runtime");
+            commandNative.PrepareUnload(); Acknowledge(commandNative);
+        }
         var legacy = Newtonsoft.Json.JsonConvert.DeserializeObject<VipProfile>("{\"Name\":\"old\",\"TagPlacement\":1}")!;
         check(!legacy.NativeVipEnabled, "old native-placement profiles migrate with automatic enablement OFF");
         var session = new NativeEnableSession();

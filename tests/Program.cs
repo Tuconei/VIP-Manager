@@ -424,6 +424,7 @@ var profileOne = new VipProfile { SpreadsheetId = validSheet };
 var profileTwo = new VipProfile { SpreadsheetId = new string('b',25) };
 Check(SheetLink.TryCreate(profileOne.SpreadsheetId, out var one, out _) && SheetLink.TryCreate(profileTwo.SpreadsheetId, out var two, out _) && one != two && profileOne.SpreadsheetId == validSheet, "sheet target derives independently from active profile ID without saving config");
 RuntimeEnableChecks.Run(Check);
+CommandChecks.Run(Check);
 Console.WriteLine($"{passed} checks passed. No game process or live settings accessed.");
 
 

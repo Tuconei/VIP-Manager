@@ -10,6 +10,7 @@ namespace VipNameChecker
         private readonly Configuration _config;
         private readonly VipManager _vipManager;
         private readonly NativeVipTitles _native;
+        private readonly Action _openHelp;
         private string _nativeHex = "";
         private string _nativeHexSource = "";
         private bool _isOpen = false;
@@ -25,9 +26,10 @@ namespace VipNameChecker
             set => _isOpen = value;
         }
 
-        internal VipGui(Configuration config, VipManager manager, NativeVipTitles native)
+        internal VipGui(Configuration config, VipManager manager, NativeVipTitles native, Action openHelp)
         {
             _native = native;
+            _openHelp = openHelp;
             _config = config;
             _vipManager = manager;
             Service.PluginInterface.UiBuilder.Draw += Draw;
@@ -43,6 +45,7 @@ namespace VipNameChecker
             ImGui.SetNextWindowSize(new Vector2(450, 500), ImGuiCond.FirstUseEver);
             if (ImGui.Begin("VIP Name Checker Settings", ref _isOpen))
             {
+                if (ImGui.Button("Help / Commands")) _openHelp();
                 ImGui.BeginDisabled(!_native.SafeToUnload);
                 DrawProfileSelector();
                 ImGui.EndDisabled();
@@ -106,6 +109,7 @@ namespace VipNameChecker
                     _config.Save();
                     Service.NamePlateGui.RequestRedraw();
                 }
+
 
                 ImGui.BeginDisabled(!_native.SafeToUnload);
                 int placement = (int)profile.TagPlacement;

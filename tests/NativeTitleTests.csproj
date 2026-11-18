@@ -10,6 +10,8 @@
   <ItemGroup>
     <Compile Include="..\NativeVipTitles.cs" Link="NativeVipTitles.cs" />
     <Compile Include="..\NativeTitleObserver.cs" Link="NativeTitleObserver.cs" />
+    <Compile Include="..\VipCommands.cs" Link="VipCommands.cs" />
+    <Compile Include="..\VipHelpContent.cs" Link="VipHelpContent.cs" />
     <Compile Include="..\SheetLink.cs" Link="SheetLink.cs" />
     <Compile Include="..\Service.cs" Link="Service.cs" />
     <Compile Include="..\VipManager.cs" Link="VipManager.cs" />
@@ -26,4 +28,3 @@
     <Reference Include="InteropGenerator.Runtime"><HintPath>$(DalamudLibPath)InteropGenerator.Runtime.dll</HintPath></Reference>
   </ItemGroup>
 </Project>
-
